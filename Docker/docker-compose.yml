@@ -46,7 +46,7 @@ x-init-ollama: &init-ollama
     - OLLAMA_HOST=ollama:11434
   command:
     - "-c"
-    - "sleep 3; ollama pull llama3.2"
+    - "sleep 3; ollama pull llama3.2; ollama pull nomic-embed-text"
 
 services:
   
@@ -61,6 +61,7 @@ services:
       - POSTGRES_DB
     volumes:
       - postgres_storage:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
@@ -68,6 +69,7 @@ services:
       retries: 10
   docling:
     image: quay.io/docling-project/docling-serve:latest
+    networks: ['demo']
     restart: unless-stopped
     ports:
       - "5001:5001"
@@ -108,6 +110,8 @@ services:
         condition: service_healthy
       n8n-import:
         condition: service_completed_successfully
+      qdrant-init:
+        condition: service_completed_successfully
 
   qdrant:
     image: qdrant/qdrant
@@ -116,9 +120,34 @@ services:
     networks: ['demo']
     restart: unless-stopped
     ports:
-      - 6333:6333
+      - "6333:6333"
     volumes:
       - qdrant_storage:/qdrant/storage
+
+  qdrant-init:
+    image: curlimages/curl:8.5.0
+    networks: ['demo']
+    restart: "no"
+    depends_on:
+      qdrant:
+        condition: service_started
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Waiting for Qdrant..."
+        until curl -s http://qdrant:6333/healthz > /dev/null; do
+          sleep 1
+        done
+
+        echo "Creating collection..."
+        curl -s -X PUT http://qdrant:6333/collections/chunks \
+          -H "Content-Type: application/json" \
+          --data-raw '{
+            "vectors": { "size": 768, "distance": "Cosine" }
+          }' || true
+
+        echo "Qdrant init done"
 
   ollama-cpu:
     profiles: ["cpu"]

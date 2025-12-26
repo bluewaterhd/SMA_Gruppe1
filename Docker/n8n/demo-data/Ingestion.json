@@ -1,0 +1,1073 @@
+{
+  "name": "Ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        688,
+        0
+      ],
+      "id": "73c53bab-f532-49c3-a9e7-5fba359c6532",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "84229672-048e-4d04-b563-34de64839da0",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "chunks",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2544,
+        192
+      ],
+      "id": "21080b20-d87b-458b-aa2b-51dac9d221a2",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "50156f38-7281-4687-8d78-466cbb885feb",
+              "name": "baseUrl",
+              "value": "https://api.zotero.org",
+              "type": "string"
+            },
+            {
+              "id": "b78103d0-9f98-450c-b30e-90c0c951bdc2",
+              "name": "apiKey",
+              "value": "3VKaGKjrQY46wqTqF5Deuxmc",
+              "type": "string"
+            },
+            {
+              "id": "7d680a4b-6455-4940-bbd6-c25552944a32",
+              "name": "doclingBaseUrl",
+              "value": "http://docling:5001/v1",
+              "type": "string"
+            },
+            {
+              "id": "40ee2479-62cf-47ec-b436-b480e291adac",
+              "name": "paperCount",
+              "value": 1,
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        0
+      ],
+      "id": "ff1629b3-bbb9-493d-90bd-511f0b1ca411",
+      "name": "SetConstants"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.baseUrl }}/groups/6357600/items/top",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Zotero-API-Key",
+              "value": "={{ $json.apiKey }}"
+            },
+            {
+              "name": "Zotero-API-Version",
+              "value": "3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        480,
+        0
+      ],
+      "id": "d30ba595-dc12-4a2a-9a4e-db7704518557",
+      "name": "GetZoteroItems"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6821e051-7a2c-42eb-9dff-004510241202",
+              "leftValue": "={{ \n  ($json.data.itemType === \"attachment\" && \n   $json.data.contentType === \"application/pdf\") \n  || \n  $json.data.filename?.endsWith(\".pdf\")\n}}",
+              "rightValue": "attachment",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        128
+      ],
+      "id": "ac1bca5d-903d-4b37-99e3-c44b66b51a35",
+      "name": "IsPDF?"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('SetConstants').item.json.baseUrl }}/groups/6357600/items/{{$json.key}}/children",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "=Authorization",
+              "value": "=Bearer {{ $('SetConstants').item.json.apiKey }}"
+            },
+            {
+              "name": "Zotero-API-Version",
+              "value": "3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        208
+      ],
+      "id": "7368932b-a655-4cde-83af-60217cfd2d62",
+      "name": "GetPDF"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6821e051-7a2c-42eb-9dff-004510241202",
+              "leftValue": "={{ \n  ($json.data.itemType === \"attachment\" && \n   $json.data.contentType === \"application/pdf\") \n  || \n  $json.data.filename?.endsWith(\".pdf\")\n}}",
+              "rightValue": "attachment",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1312,
+        208
+      ],
+      "id": "2a207ec9-88cf-4ff1-8a20-aa6e7ad0ec94",
+      "name": "IsPDF"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('SetConstants').item.json.baseUrl }}/groups/6357600/items/{{ $json.key }}/file",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('SetConstants').item.json.apiKey }}"
+            },
+            {
+              "name": "Zotero-API-Version",
+              "value": "3"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1600,
+        192
+      ],
+      "id": "1750fc28-4be6-40da-b486-a338faedf1df",
+      "name": "DownloadPDF"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f65b926a-6ae8-49ad-94ec-91e0893404e5",
+              "leftValue": "={{ $json.links.enclosure.length }}",
+              "rightValue": 2000000,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1840,
+        192
+      ],
+      "id": "b0cc4f8f-3484-46db-9252-95a7f0f35fe3",
+      "name": "IsBig?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('SetConstants').item.json.doclingBaseUrl }}/chunk/hybrid/file",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "chunking_max_tokens",
+              "value": "800"
+            },
+            {
+              "name": "chunking_merge_peers",
+              "value": "true"
+            },
+            {
+              "name": "chunking_tokenizer",
+              "value": "sentence-transformers/all-MiniLM-L6-v2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2256,
+        224
+      ],
+      "id": "1a7a326d-ebab-4255-b6bd-2d52d5380ce9",
+      "name": "GetChunks"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f8e5d9a0-0c30-4cd3-8bde-63562cb28e19",
+              "name": "chunk_id",
+              "value": "=paper{{ $('SetConstants').item.json.paperCount }}chunk{{ $json.chunk_index }}",
+              "type": "string"
+            },
+            {
+              "id": "14a5a2f0-3c5b-4836-a4c7-3be442fb591c",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "b887b862-dd1d-436d-9045-f34f8c20eb8e",
+              "name": "doc_name",
+              "value": "={{ $('GetZoteroItems').item.json.data.title }}",
+              "type": "string"
+            },
+            {
+              "id": "47bb2578-39f3-46ad-8be0-12a79a45757b",
+              "name": "page_start",
+              "value": "={{ $json.page_numbers[0] }}",
+              "type": "number"
+            },
+            {
+              "id": "a186699f-be2d-4fa4-93f9-5beaaeb35ad1",
+              "name": "page_end",
+              "value": "={{ $json.page_numbers.length }}",
+              "type": "number"
+            },
+            {
+              "id": "88b5f326-46cf-4ffc-8004-34325d4d0ec4",
+              "name": "tag",
+              "value": "ai",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3024,
+        192
+      ],
+      "id": "112878b1-644b-40ca-94b3-1edc4dca805f",
+      "name": "FormatChunks"
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "dokumente_log",
+          "mode": "list",
+          "cachedResultName": "dokumente_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "seitestart": "={{ $json.page_start }}",
+            "seiteende": "={{ $json.page_end }}",
+            "inhalt": "={{ $json.text }}",
+            "titel": "={{ $json.doc_name }}",
+            "tag": "={{ $json.tag }}",
+            "chunkid": "{{ $json.chunk_id }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "chunkid",
+              "displayName": "chunkid",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "titel",
+              "displayName": "titel",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "seitestart",
+              "displayName": "seitestart",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "seiteende",
+              "displayName": "seiteende",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inhalt",
+              "displayName": "inhalt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tag",
+              "displayName": "tag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3536,
+        192
+      ],
+      "id": "ef097fde-b609-4ce7-a841-517c283ddaa7",
+      "name": "Chunks into postgre",
+      "credentials": {
+        "postgres": {
+          "id": "rmYquuTPfcNTIuVZ",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://qdrant:6333/collections/chunks/points?wait=true",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"points\": [\n    {\n      \"id\": Number($('Chunks into postgre').item.json.id),\n      \"vector\": $json.embedding,\n      \"payload\": { chunkid: $('FormatChunks').item.json.chunk_id }\n    }\n  ]\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4000,
+        16
+      ],
+      "id": "039d59c9-e206-429b-85f3-a679c70bc3e5",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('SetConstants').item.json.doclingBaseUrl }}/chunk/hybrid/file/async",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "files",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "chunking_max_tokens",
+              "value": "800"
+            },
+            {
+              "name": "chunking_merge_peers",
+              "value": "true"
+            },
+            {
+              "name": "chunking_tokenizer",
+              "value": "sentence-transformers/all-MiniLM-L6-v2"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2256,
+        480
+      ],
+      "id": "523660c1-ce7d-4751-83a2-e3dc21d4d9de",
+      "name": "GetChunks1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('SetConstants').item.json.doclingBaseUrl }}/status/poll/{{$json.task_id}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2464,
+        480
+      ],
+      "id": "cfc1e83f-c68f-4ac2-a618-fc0ffd7da1b8",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9293b214-2997-439c-8639-ce697c78e0da",
+              "leftValue": "={{ [\"success\", \"done\", \"completed\"].includes($json.task_status) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2672,
+        480
+      ],
+      "id": "239156e4-643a-4046-87dc-ff3c2d39e42f",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6bed4c9a-70c6-4c9c-9b85-c91db60dab91",
+              "leftValue": "={{ [\"fail\", \"error\"].includes($json.task_status) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3280,
+        656
+      ],
+      "id": "1b34f1cf-5d2a-4061-8883-cd4489621538",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "amount": 60
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3504,
+        800
+      ],
+      "id": "0638fce1-9ffc-4fcf-94f2-c568df362435",
+      "name": "Wait",
+      "webhookId": "14bd6179-1cab-4754-97de-fa77f8c20a71"
+    },
+    {
+      "parameters": {
+        "batchSize": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        3808,
+        192
+      ],
+      "id": "c704ba6c-6a66-497e-a5b4-7d4d0fb7f43f",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "prompt",
+              "value": "=={{$json.text}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4016,
+        368
+      ],
+      "id": "d8c156b2-64a8-4fb5-9668-de10282df97d",
+      "name": "Embeddings1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        4592,
+        528
+      ],
+      "id": "a7f1ee01-2208-41e9-858e-a909061eb118",
+      "name": "Wait1",
+      "webhookId": "828f9975-a3bd-4902-acef-1c87497b708c"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('SetConstants').item.json.doclingBaseUrl }}/result/{{ $('HTTP Request1').item.json.task_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2992,
+        448
+      ],
+      "id": "3f5bed8e-aa06-405e-af64-57f839a464f2",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e075c2de-880d-493c-a4a8-e04fcbfeb8b9",
+              "name": "paperCount",
+              "value": "={{ $('SetConstants').item.json.paperCount +1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4112,
+        176
+      ],
+      "id": "e0ed0286-9af8-47fd-a752-6a64c8732fcf",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://qdrant:6333/collections/chunks/points?wait=true",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"points\": [\n    {\n      \"id\": Number($('Chunks into postgre').item.json.id),\n      \"vector\": $json.embedding,\n      \"payload\": { chunkid: $('FormatChunks').item.json.chunk_id }\n    }\n  ]\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4352,
+        432
+      ],
+      "id": "46a045e4-fecc-438a-958c-27a53479bf00",
+      "name": "HTTP Request3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "IsPDF?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "SetConstants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "FormatChunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SetConstants": {
+      "main": [
+        [
+          {
+            "node": "GetZoteroItems",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetZoteroItems": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IsPDF?": {
+      "main": [
+        [
+          {
+            "node": "DownloadPDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GetPDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetPDF": {
+      "main": [
+        [
+          {
+            "node": "IsPDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IsPDF": {
+      "main": [
+        [
+          {
+            "node": "DownloadPDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DownloadPDF": {
+      "main": [
+        [
+          {
+            "node": "IsBig?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IsBig?": {
+      "main": [
+        [
+          {
+            "node": "GetChunks1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GetChunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetChunks": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatChunks": {
+      "main": [
+        [
+          {
+            "node": "Chunks into postgre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunks into postgre": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetChunks1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Embeddings1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "829e5d97-1fd2-4ac0-88d0-1d4e7cefbbd7",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2e5c459191bca6972a6ed06a2c5d41835b85727e5281032a4ad737c853e399fa"
+  },
+  "id": "GC3FITNoZAvDSTYB",
+  "tags": []
+}
