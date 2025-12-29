@@ -11,7 +11,7 @@
         688,
         0
       ],
-      "id": "73c53bab-f532-49c3-a9e7-5fba359c6532",
+      "id": "0d5d6175-b293-411a-bbca-45f44d8c6d0a",
       "name": "Loop Over Items"
     },
     {
@@ -22,7 +22,7 @@
         0,
         0
       ],
-      "id": "84229672-048e-4d04-b563-34de64839da0",
+      "id": "efc2ce06-b6fb-4fbb-aa6c-edb138e415d5",
       "name": "When clicking ‘Execute workflow’"
     },
     {
@@ -36,7 +36,7 @@
         2544,
         192
       ],
-      "id": "21080b20-d87b-458b-aa2b-51dac9d221a2",
+      "id": "d5ec44d6-dbc9-49bc-9a5c-8ae672fb8da5",
       "name": "Split Out"
     },
     {
@@ -78,7 +78,7 @@
         272,
         0
       ],
-      "id": "ff1629b3-bbb9-493d-90bd-511f0b1ca411",
+      "id": "2ac9e14d-7471-4bc3-b4b8-1aa50260773d",
       "name": "SetConstants"
     },
     {
@@ -105,7 +105,7 @@
         480,
         0
       ],
-      "id": "d30ba595-dc12-4a2a-9a4e-db7704518557",
+      "id": "d0836ad3-33e7-4e57-b28c-7f1af40c7f84",
       "name": "GetZoteroItems"
     },
     {
@@ -139,7 +139,7 @@
         896,
         128
       ],
-      "id": "ac1bca5d-903d-4b37-99e3-c44b66b51a35",
+      "id": "99fe48e8-68db-46ad-bddd-c7c42cf091db",
       "name": "IsPDF?"
     },
     {
@@ -166,7 +166,7 @@
         1104,
         208
       ],
-      "id": "7368932b-a655-4cde-83af-60217cfd2d62",
+      "id": "6b8e4689-227b-433e-81d1-fc868f49d7a4",
       "name": "GetPDF"
     },
     {
@@ -200,7 +200,7 @@
         1312,
         208
       ],
-      "id": "2a207ec9-88cf-4ff1-8a20-aa6e7ad0ec94",
+      "id": "94fccf70-3b23-4540-88b4-e0d4e1af9979",
       "name": "IsPDF"
     },
     {
@@ -233,7 +233,7 @@
         1600,
         192
       ],
-      "id": "1750fc28-4be6-40da-b486-a338faedf1df",
+      "id": "71fc4bd1-1626-4072-a07e-0046e4c09af9",
       "name": "DownloadPDF"
     },
     {
@@ -266,7 +266,7 @@
         1840,
         192
       ],
-      "id": "b0cc4f8f-3484-46db-9252-95a7f0f35fe3",
+      "id": "b5733fa5-6b0d-44ec-adf9-9542bf8fb02d",
       "name": "IsBig?"
     },
     {
@@ -304,7 +304,7 @@
         2256,
         224
       ],
-      "id": "1a7a326d-ebab-4255-b6bd-2d52d5380ce9",
+      "id": "80d85f65-d4c0-4398-8cad-4a607804975f",
       "name": "GetChunks"
     },
     {
@@ -357,7 +357,7 @@
         3024,
         192
       ],
-      "id": "112878b1-644b-40ca-94b3-1edc4dca805f",
+      "id": "040b57c5-30b2-49d6-886a-525765d9b740",
       "name": "FormatChunks"
     },
     {
@@ -473,32 +473,14 @@
         3536,
         192
       ],
-      "id": "ef097fde-b609-4ce7-a841-517c283ddaa7",
+      "id": "4c26a73a-104c-4b64-91ef-d31a3fa5f7f1",
       "name": "Chunks into postgre",
       "credentials": {
         "postgres": {
-          "id": "rmYquuTPfcNTIuVZ",
+          "id": "EefzEhRlFWiyVSDE",
           "name": "Postgres account"
         }
       }
-    },
-    {
-      "parameters": {
-        "method": "PUT",
-        "url": "http://qdrant:6333/collections/chunks/points?wait=true",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{\n{\n  \"points\": [\n    {\n      \"id\": Number($('Chunks into postgre').item.json.id),\n      \"vector\": $json.embedding,\n      \"payload\": { chunkid: $('FormatChunks').item.json.chunk_id }\n    }\n  ]\n}\n}}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.3,
-      "position": [
-        4000,
-        16
-      ],
-      "id": "039d59c9-e206-429b-85f3-a679c70bc3e5",
-      "name": "HTTP Request"
     },
     {
       "parameters": {
@@ -535,7 +517,7 @@
         2256,
         480
       ],
-      "id": "523660c1-ce7d-4751-83a2-e3dc21d4d9de",
+      "id": "d8ddc6e8-5c4b-4404-a133-f72e63bb4562",
       "name": "GetChunks1"
     },
     {
@@ -549,7 +531,7 @@
         2464,
         480
       ],
-      "id": "cfc1e83f-c68f-4ac2-a618-fc0ffd7da1b8",
+      "id": "49038e62-263f-4819-a772-a867e445c9d5",
       "name": "HTTP Request1"
     },
     {
@@ -583,7 +565,7 @@
         2672,
         480
       ],
-      "id": "239156e4-643a-4046-87dc-ff3c2d39e42f",
+      "id": "1454bb72-8998-4deb-981d-70722537cbdd",
       "name": "If"
     },
     {
@@ -617,7 +599,7 @@
         3280,
         656
       ],
-      "id": "1b34f1cf-5d2a-4061-8883-cd4489621538",
+      "id": "b2f9ed4c-7ace-4e85-a55c-74bb7f18b520",
       "name": "If1"
     },
     {
@@ -630,7 +612,7 @@
         3504,
         800
       ],
-      "id": "0638fce1-9ffc-4fcf-94f2-c568df362435",
+      "id": "16fabb9e-bece-46f2-87f3-429b9ae20ac2",
       "name": "Wait",
       "webhookId": "14bd6179-1cab-4754-97de-fa77f8c20a71"
     },
@@ -645,7 +627,7 @@
         3808,
         192
       ],
-      "id": "c704ba6c-6a66-497e-a5b4-7d4d0fb7f43f",
+      "id": "fa9baa67-78b3-4e53-b193-3db4500d46c4",
       "name": "Loop Over Items1"
     },
     {
@@ -661,7 +643,7 @@
             },
             {
               "name": "prompt",
-              "value": "=={{$json.text}}"
+              "value": "={{ $('Chunks into postgre').item.json.inhalt }}"
             }
           ]
         },
@@ -673,7 +655,7 @@
         4016,
         368
       ],
-      "id": "d8c156b2-64a8-4fb5-9668-de10282df97d",
+      "id": "fc1823a9-ba81-46a0-b24e-a8bb8c37dc0c",
       "name": "Embeddings1"
     },
     {
@@ -684,7 +666,7 @@
         4592,
         528
       ],
-      "id": "a7f1ee01-2208-41e9-858e-a909061eb118",
+      "id": "21c76aee-7e52-4c28-b006-4ed636bd89d7",
       "name": "Wait1",
       "webhookId": "828f9975-a3bd-4902-acef-1c87497b708c"
     },
@@ -699,7 +681,7 @@
         2992,
         448
       ],
-      "id": "3f5bed8e-aa06-405e-af64-57f839a464f2",
+      "id": "deaa4cf9-921d-406c-a888-4578651def49",
       "name": "HTTP Request2"
     },
     {
@@ -722,7 +704,7 @@
         4112,
         176
       ],
-      "id": "e0ed0286-9af8-47fd-a752-6a64c8732fcf",
+      "id": "3a7a725e-305b-444b-8d1a-349d84284d07",
       "name": "Edit Fields"
     },
     {
@@ -731,7 +713,7 @@
         "url": "http://qdrant:6333/collections/chunks/points?wait=true",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{\n{\n  \"points\": [\n    {\n      \"id\": Number($('Chunks into postgre').item.json.id),\n      \"vector\": $json.embedding,\n      \"payload\": { chunkid: $('FormatChunks').item.json.chunk_id }\n    }\n  ]\n}\n}}",
+        "jsonBody": "={{\n{\n  \"points\": [\n    {\n      \"id\": Number($('Chunks into postgre').item.json.id),\n      \"vector\": $json.embedding,\n      \"payload\": { \"chunkid\": $('FormatChunks').item.json.chunk_id, \"text\": $('FormatChunks').item.json.text }\n    }\n  ]\n}\n}}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -740,7 +722,7 @@
         4352,
         432
       ],
-      "id": "46a045e4-fecc-438a-958c-27a53479bf00",
+      "id": "436e05f4-a5d6-443f-928b-ba7c5bb3c15b",
       "name": "HTTP Request3"
     }
   ],
@@ -951,11 +933,6 @@
         ]
       ]
     },
-    "HTTP Request": {
-      "main": [
-        []
-      ]
-    },
     "If1": {
       "main": [
         [
@@ -1063,11 +1040,11 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "829e5d97-1fd2-4ac0-88d0-1d4e7cefbbd7",
+  "versionId": "11f252aa-bfd2-453d-ac8d-176f7c920e14",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "2e5c459191bca6972a6ed06a2c5d41835b85727e5281032a4ad737c853e399fa"
   },
-  "id": "GC3FITNoZAvDSTYB",
+  "id": "qZdWk0RNLypNhw9r",
   "tags": []
 }
