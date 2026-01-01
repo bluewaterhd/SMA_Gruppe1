@@ -1,0 +1,384 @@
+{
+  "name": "Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -16,
+        112
+      ],
+      "id": "bba274db-895b-44f4-b60c-7fb48b015367",
+      "name": "When chat message received",
+      "webhookId": "6fe60a94-71fa-4cf3-9434-b74a13fc29fb"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"response\": $json.response } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1248,
+        416
+      ],
+      "id": "40bed656-3c13-48d8-882b-db041b3dc05b",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -112,
+        416
+      ],
+      "id": "71983e7d-c4aa-41fc-b9b2-1544cc4ea9fd",
+      "name": "Webhook",
+      "webhookId": "75d30db5-b406-4038-9eed-98733ccd78f5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"$json.userQuestion\" \n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        400,
+        416
+      ],
+      "id": "81027f1a-79fe-42d1-b968-a52f17eb18e2",
+      "name": "Ollama Embeddings"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/chunks/points/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    \"vector\": $json.embedding,\n    \"limit\": 3,\n    \"with_payload\": true\n  })\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        608,
+        416
+      ],
+      "id": "839db369-f488-49b4-a462-02f816345d19",
+      "name": "Search"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\nJSON.stringify({\n  model: \"llama3\",\n  prompt:\n    \"Du bist ein hilfreicher Chat-Assistent für Studierende. Deine Antworten sind kurz, prägnant und natürlich.\\n\" +\n    \"REGEL: Antworte IMMER in der gleichen Sprache, in der die Frage gestellt wurde \\n\" +\n    \"USER FRAGE: '\" + $json.body.message + \"'\\n\\n\" +\n    \"KONTEXT AUS DATENBANK:\\n\" + \n    $json.result.map(i => i.payload.text).join(\"\\n\") + \n    \"\\n\\n\" +\n    \"ANWEISUNGEN:\\n\" +\n    \"1. Wenn der Kontext zur Frage passt: Nutze ihn für die Antwort und nenne die Quelle (Datei/Seite).\\n\" +\n    \"2. Wenn es Smalltalk ist: Ignoriere den Kontext. Antworte freundlich in der passenden Sprache.\\n\" +\n    \"3. Wenn der Kontext nicht passt: Sag ehrlich in der passenden Sprache, dass du keine Infos hast.\\n\\n\" +\n    \"WICHTIG: Erfinde keine Fakten. Sei höflich.\",\n  stream: false\n})\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1024,
+        416
+      ],
+      "id": "443ea3fe-c7bc-4707-a4b5-acd4a61c1cf1",
+      "name": "Antwort generieren"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f4b97985-4a9e-4d56-a57a-6060f8dcafc8",
+              "name": "userQuestion ",
+              "value": "={{ $node[\"Webhook\"].json[\"body\"][\"message\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        112,
+        416
+      ],
+      "id": "24354c09-7c1f-409b-8838-aa38b9e15f21",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"$json.chatInput\" \n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        272,
+        112
+      ],
+      "id": "fc239721-86e5-427b-aa05-d5d75ed57543",
+      "name": "Ollama Embeddings1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/chunks/points/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    \"vector\": $json.embedding,\n    \"limit\": 3,\n    \"with_payload\": true\n  })\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        480,
+        112
+      ],
+      "id": "321ace42-6b6c-43fa-b138-0c2f50fa430e",
+      "name": "Search1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\nJSON.stringify({\n  model: \"llama3\",\n  prompt:\n    \"Du bist ein hilfreicher Assistent für Studierende. Antworte kurz, prägnant und immer auf Deutsch.\\n\" +\n    \"REGEL: Beantworte die Frage NUR basierend auf dem unten stehenden Kontext. Wenn du die Antwort nicht im Kontext findest, sag es ehrlich.\\n\" +\n    \"ZITIER-REGEL: Gib am Ende deiner Antwort IMMER die Quelle in eckigen Klammern an. Format: [Dokumentname, Seite X].\\n\\n\" +\n\n    \"KONTEXT:\\n\" +\n    $json.result.map(i => \n       \"Inhalt: \" + i.payload.text + \"\\n\" +\n       \"Quelle: \" + (i.payload.doc_name || \"Unbekanntes Dokument\") + \"\\n\" +\n       \"Seite: \" + (i.payload.page_start || \"?\") + \"\\n\" +\n       \"---\"\n    ).join(\"\\n\") + \n    \"\\n\\n\" +\n\n    \"FRAGE: \" + $json.userQuestion,\n  stream: false\n})\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        880,
+        112
+      ],
+      "id": "d2bf4763-a3f4-47da-8612-6b0d261b1b1f",
+      "name": "Antwort generieren1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "11d4783f-9724-4334-8d1b-e871dac4f2eb",
+              "name": "output",
+              "value": "={{ $json.response }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1088,
+        112
+      ],
+      "id": "1e744c00-51b9-446a-afec-5e947bca4a33",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ea7ea62f-bd50-4d8c-bb46-482ff3b76002",
+              "name": "userQuestion",
+              "value": "={{ $node[\"When chat message received\"].json[\"chatInput\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        112
+      ],
+      "id": "545d23fc-87c6-4f8b-b73f-275a059c1fe1",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        816,
+        672
+      ],
+      "id": "b6020606-f72e-45cd-8b49-0cfa93f9033c",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embeddings1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Antwort generieren": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embeddings",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embeddings1": {
+      "main": [
+        [
+          {
+            "node": "Search1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Antwort generieren1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Antwort generieren1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Antwort generieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "01b05294-f96d-4bac-a4bb-c39d8e9ec443",
+  "meta": {
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "yPOFa0g0ZcfrtgJ0",
+  "tags": []
+}
