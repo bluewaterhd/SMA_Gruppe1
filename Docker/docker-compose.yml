@@ -140,6 +140,9 @@ services:
           sleep 1
         done
 
+        echo "Deleting collection (if exists)..."
+        curl -s -X DELETE http://qdrant:6333/collections/chunks || true
+
         echo "Creating collection..."
         curl -s -X PUT http://qdrant:6333/collections/chunks \
           -H "Content-Type: application/json" \
