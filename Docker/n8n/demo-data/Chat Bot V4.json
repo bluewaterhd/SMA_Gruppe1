@@ -1,0 +1,509 @@
+{
+  "name": "Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"output\": $json.output } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1824,
+        -304
+      ],
+      "id": "40bed656-3c13-48d8-882b-db041b3dc05b",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2560,
+        -304
+      ],
+      "id": "71983e7d-c4aa-41fc-b9b2-1544cc4ea9fd",
+      "name": "Webhook",
+      "webhookId": "75d30db5-b406-4038-9eed-98733ccd78f5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"$json.userQuestion\" \n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -608,
+        -16
+      ],
+      "id": "81027f1a-79fe-42d1-b968-a52f17eb18e2",
+      "name": "Ollama Embeddings"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/chunks/points/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    \"vector\": $json.embedding,\n    \"limit\": 3,\n    \"with_payload\": true\n  })\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -400,
+        -16
+      ],
+      "id": "839db369-f488-49b4-a462-02f816345d19",
+      "name": "Search"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\nJSON.stringify({\n  model: \"llama3\",\n  prompt:\n    \"Du bist ein hilfreicher Chat-Assistent für Studierende. Deine Antworten sind kurz, prägnant und natürlich.\\n\" +\n    \"REGEL: Antworte IMMER in der gleichen Sprache, in der die Frage gestellt wurde \\n\" +\n    \"USER FRAGE: '\" + $json.body.message + \"'\\n\\n\" +\n    \"KONTEXT AUS DATENBANK:\\n\" + \n    $json.result.map(i => i.payload.text).join(\"\\n\") + \n    \"\\n\\n\" +\n    \"ANWEISUNGEN:\\n\" +\n    \"1. Wenn der Kontext zur Frage passt: Nutze ihn für die Antwort und nenne die Quelle (Datei/Seite).\\n\" +\n    \"2. Wenn es Smalltalk ist: Ignoriere den Kontext. Antworte freundlich in der passenden Sprache.\\n\" +\n    \"3. Wenn der Kontext nicht passt: Sag ehrlich in der passenden Sprache, dass du keine Infos hast.\\n\\n\" +\n    \"WICHTIG: Erfinde keine Fakten. Sei höflich.\",\n  stream: false\n})\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16,
+        -16
+      ],
+      "id": "443ea3fe-c7bc-4707-a4b5-acd4a61c1cf1",
+      "name": "Antwort generieren"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f4b97985-4a9e-4d56-a57a-6060f8dcafc8",
+              "name": "userQuestion ",
+              "value": "={{ $node[\"Webhook\"].json[\"body\"][\"message\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -896,
+        -16
+      ],
+      "id": "24354c09-7c1f-409b-8838-aa38b9e15f21",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"$json.chatInput\" \n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -880,
+        -320
+      ],
+      "id": "fc239721-86e5-427b-aa05-d5d75ed57543",
+      "name": "Ollama Embeddings1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/chunks/points/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  JSON.stringify({\n    \"vector\": $json.embedding,\n    \"limit\": 50,\n    \"with_payload\": true\n  })\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -672,
+        -320
+      ],
+      "id": "321ace42-6b6c-43fa-b138-0c2f50fa430e",
+      "name": "Search1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\nJSON.stringify({\n  model: \"llama3\",\n  prompt:\n    \"Du bist ein hilfreicher Assistent für Studierende. Antworte kurz, prägnant und immer auf Deutsch.\\n\" +\n    \"REGEL: Beantworte die Frage NUR basierend auf dem unten stehenden Kontext. Wenn du die Antwort nicht im Kontext findest, sag es ehrlich.\\n\" +\n    \"ZITIER-REGEL: Gib am Ende deiner Antwort IMMER die Quelle in eckigen Klammern an. Format: [Dokumentname, Seite X].\\n\\n\" +\n\n    \"KONTEXT:\\n\" +\n    $json.result.map(i => \n       \"Inhalt: \" + i.payload.text + \"\\n\" +\n       \"Quelle: \" + (i.payload.doc_name || \"Unbekanntes Dokument\") + \"\\n\" +\n       \"Seite: \" + (i.payload.page_start || \"?\") + \"\\n\" +\n       \"---\"\n    ).join(\"\\n\") + \n    \"\\n\\n\" +\n\n    \"FRAGE: \" + $json.userQuestion,\n  stream: false\n})\n}}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -272,
+        -320
+      ],
+      "id": "d2bf4763-a3f4-47da-8612-6b0d261b1b1f",
+      "name": "Antwort generieren1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "11d4783f-9724-4334-8d1b-e871dac4f2eb",
+              "name": "output",
+              "value": "={{ $json.response }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -64,
+        -320
+      ],
+      "id": "1e744c00-51b9-446a-afec-5e947bca4a33",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ea7ea62f-bd50-4d8c-bb46-482ff3b76002",
+              "name": "userQuestion",
+              "value": "={{ $node[\"When chat message received\"].json[\"chatInput\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -464,
+        -320
+      ],
+      "id": "545d23fc-87c6-4f8b-b73f-275a059c1fe1",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -192,
+        240
+      ],
+      "id": "b6020606-f72e-45cd-8b49-0cfa93f9033c",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "Du bist ein spezialisierter Assistent für IT-Sicherheit der Gruppe 1.\n\nOBERSTE REGEL:\nDu darfst Fragen AUSSCHLIESSLICH basierend auf den Informationen beantworten, die du über das Tool 'Qdrant Vector Store' findest.\nNutze KEIN eigenes Wissen und erfinde KEINE Fakten.\n\nVERHALTEN:\n1. Suche IMMER zuerst im Qdrant Vector Store nach Informationen.\n2. Wenn du die Antwort in den abgerufenen Dokumenten findest:\n   - Antworte präzise auf Deutsch.\n   - Gib am Ende jeder Information die Quelle an (Format: Quelle: [Titel], Seite: [seitestart]).\n3. Wenn die Information NICHT im Qdrant Vector Store steht:\n   - Antworte strikt: \"Dazu habe ich leider keine Informationen in meiner Datenbank gefunden.\"\n   - Versuche nicht, die Antwort zu erraten.\n\nAUSNAHME FÜR BEGRÜSSUNGEN:\nAuf reine Begrüßungen (z.B. \"Hallo\", \"Guten Morgen\") darfst du kurz und höflich reagieren und deine Hilfe anbieten. Aber sobald eine Sachfrage kommt, gilt wieder die Oberste Regel.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2256,
+        -304
+      ],
+      "id": "97717c60-4ab5-4a2a-9460-7cec613351a8",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -2368,
+        176
+      ],
+      "id": "aacf8af8-a601-4988-b904-02058f8eba50",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        -2048,
+        160
+      ],
+      "id": "3e5eade8-3a94-4a3a-984a-528a1fc49cc1",
+      "name": "Embeddings Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.message }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -2192,
+        -112
+      ],
+      "id": "cd487d7a-2f9f-44d6-80a7-2398091a4cc5",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Durchsucht die Wissensdatenbank. Nutze dieses Tool immer, wenn der Nutzer Fragen zu Dokumenten stellt.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "chunks",
+          "mode": "list",
+          "cachedResultName": "chunks"
+        },
+        "options": {
+          "contentPayloadKey": "text",
+          "metadataPayloadKey": "seitestart"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        -2048,
+        -32
+      ],
+      "id": "5e035905-a33e-4674-94a9-f1f5cbeb31c7",
+      "name": "Qdrant Vector Store",
+      "credentials": {
+        "qdrantApi": {
+          "id": "sFfERYppMeBnFNeA",
+          "name": "Local QdrantApi database"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Antwort generieren": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Ollama Embeddings",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Embeddings1": {
+      "main": [
+        [
+          {
+            "node": "Search1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Antwort generieren1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Antwort generieren1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Antwort generieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fc11a813-3ed6-46ea-9e1e-eaeb0cc2e350",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "yPOFa0g0ZcfrtgJ0",
+  "tags": []
+}
