@@ -1,0 +1,590 @@
+{
+  "name": "Chat 5",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        128,
+        32
+      ],
+      "id": "e1099c1d-01eb-49e9-a7e0-ac4bcc445323",
+      "name": "When chat message received",
+      "webhookId": "6fe60a94-71fa-4cf3-9434-b74a13fc29fb"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        272
+      ],
+      "id": "740ae024-f7db-4cb7-9acc-099eb4af1a70",
+      "name": "Ollama Chat Model2",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        432,
+        256
+      ],
+      "id": "80c7ff7e-5409-4bc9-8613-046122384d99",
+      "name": "Ollama Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        272
+      ],
+      "id": "fa12b8fd-5884-43f3-868c-bc08f23d70ec",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Du bist ein Experte für Informationsrückgewinnung (Information Retrieval).\nDeine Aufgabe: Generiere eine optimierte Suchanfrage (Keyword-Liste) für eine Vektor-Datenbank.\n\nANWEISUNGEN:\n1. Analysiere die User-Eingabe und erkenne das Kernthema.\n2. Ergänze wichtige Synonyme, Fachbegriffe und verwandte Wörter, die in professionellen Dokumenten zu diesem Thema vorkommen könnten.\n3. Wenn die User-Eingabe eine Fremdsprache ist (nicht Deutsch), füge UNBEDINGT auch die deutschen Übersetzungen der Schlüsselbegriffe hinzu (da die Datenbank deutsche Dokumente enthält).\n4. Gib NUR eine Liste von Stichwörtern zurück. Keine Sätze, keine Erklärungen.\n\nBeispiel:\nUser: \"Mein Rechner ist langsam\"\nOutput: Rechner Computer PC System langsam Performance Leistungsprobleme CPU Auslastung\n\nUser Eingabe: {{ $json.chatInput }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        432,
+        32
+      ],
+      "id": "02653529-9b34-4ccc-baca-785f6a648646",
+      "name": "Query Expansion & Keyword Generator"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text:latest\",\n  \"input\": {{ JSON.stringify($('Query Expansion & Keyword Generator').first().json.text) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        32
+      ],
+      "id": "2de0aee5-c508-4078-820b-a08a06f9da91",
+      "name": "Generate Embeddings"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/chunks/points/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"vector\": {{ JSON.stringify($json.embeddings[0]) }},\n  \"limit\": 10, \n  \"with_payload\": [\"titel\", \"seitestart\", \"seiteende\", \"text\"],\n  \"with_vector\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1024,
+        32
+      ],
+      "id": "1fda2d5b-51dd-4c49-a99f-0582dc74ef8c",
+      "name": "Qdrant Vector Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- 1. DATEN SICHER ABRUFEN ---\n// Wir nutzen try-catch, damit der Workflow nicht abstürzt, falls ein Node noch nicht ausgeführt wurde.\n// WICHTIG: Ersetzen Sie 'Suche' und 'Query Expansion' ggf. durch Ihre EXAKTEN Node-Namen!\n\nlet results = [];\ntry {\n  results = $('Qdrant Vector Search').first().json.result || [];\n} catch (e) {\n  // Falls keine Suchergebnisse da sind, machen wir mit leerem Array weiter\n  results = []; \n}\n\nlet expandedQuery = \"\";\ntry {\n  expandedQuery = $('Query Expansion & Keyword Generator').first().json.text || \"\";\n} catch (e) {\n  // Fallback: Wenn Query Expansion fehlt, nehmen wir den Original-Input\n  try {\n     expandedQuery = $('When chat message received').first().json.chatInput || \"\";\n  } catch(e2) {\n     expandedQuery = \"\";\n  }\n}\n\n// Sicherheits-Abbruch, wenn wirklich gar nichts da ist\nif (!expandedQuery && results.length === 0) {\n    return [{ json: { context: \"System-Hinweis: Es wurden keine Dokumente gefunden oder die Suche ist fehlgeschlagen.\" } }];\n}\n\n// --- 2. KEYWORDS VORBEREITEN ---\nconst queryLower = expandedQuery.toLowerCase();\n\n// Wir zerlegen die Frage in Wörter und filtern kurze Füllwörter (< 4 Zeichen) raus\nconst keywords = queryLower.split(' ')\n    .map(w => w.replace(/[?.,!\":]/g, '').trim())\n    .filter(w => w.length > 3);\n\n// --- 3. SCORING & SORTIERUNG ---\n// Wir erstellen NEUE Objekte (wrapper), um den \"Read Only\"-Fehler zu vermeiden.\nconst scoredItems = results.map(item => {\n    let keywordScore = 0;\n    // Sicherstellen, dass text existiert\n    const textLower = (item.payload.text || \"\").toLowerCase();\n    \n    // Punkte vergeben für jedes gefundene Keyword im Text\n    keywords.forEach(kw => {\n        if (textLower.includes(kw)) keywordScore += 1;\n    });\n\n    // Inhaltsverzeichnisse mit vielen Punkten bestrafen\n    if (textLower.includes(\". . . .\")) keywordScore -= 5;\n    if (textLower.includes(\"..........\")) keywordScore -= 5;\n\n    // Rückgabe eines neuen Objekts (verhindert n8n-Fehler)\n    return {\n        originalItem: item,\n        // Wir gewichten Keywords leicht (0.2), damit Vektor-Score (meist 0.7-0.8) wichtig bleibt\n        finalScore: (item.score || 0) + (keywordScore * 0.2) \n    };\n});\n\n// Sortieren: Höchster Score zuerst\nscoredItems.sort((a, b) => b.finalScore - a.finalScore);\n\n// Nur die Top 5 behalten und wieder das Original-Item extrahieren\nconst top5 = scoredItems.slice(0, 5).map(wrapper => wrapper.originalItem);\n\n// --- 4. CONTEXT STRING BAUEN ---\nlet contextString = \"\";\n\nif (top5.length === 0) {\n    contextString = \"Keine passenden Dokumente gefunden.\";\n} else {\n    for (const item of top5) {\n      const p = item.payload;\n      // Wir fügen Trennlinien ein für bessere Lesbarkeit durch das LLM\n      contextString += `---\nDOKUMENT: ${p.titel}\nSEITE: ${p.seitestart} - ${p.seiteende}\nINHALT:\n${p.text}\n---\\n`;\n    }\n}\n\n// Ausgabe\nreturn [{ json: { context: contextString } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        32
+      ],
+      "id": "ebf41f36-3630-412b-833e-1d11c5b484e4",
+      "name": "Reranking & Context Builder"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Du bist ein präziser Dokumenten-Assistent.\n\nREGELN:\n1. Beginne JEDE Antwort direkt mit dem Satz: \"Basierend auf [Dateiname] (Seite X-Y):\"\n2. Fasse die Informationen aus dem Kontext zusammen, um die Frage zu beantworten.\n3. Wenn der Kontext die Antwort nicht enthält, antworte nur: \"Keine Informationen im Kontext gefunden.\"\n4. Erfinde KEINE Informationen.\n\nKONTEXT:\n{{ $('Reranking & Context Builder').item.json.context }}\n\nFRAGE:\n{{ $('When chat message received').item.json.chatInput }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1488,
+        32
+      ],
+      "id": "e264e394-7e68-4a80-9912-2c8654c132f4",
+      "name": "RAG Answer Generator"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "==### ROLE\nYou are a pure translation engine. You do not chat, you do not explain, and you NEVER repeat the input.\n\n### INPUTS\n[QUESTION] = \"{{ $('When chat message received').first().json.chatInput }}\"\n[TEXT] = \"{{ $('RAG Answer Generator').first().json.text }}\"\n\n### TASK\n1. Detect the language of the \"User Question\".\n2. If \"User Question\" is German: Output \"Source Text\" exactly as is.\n3. If \"User Question\" is English: Translate \"Source Text\" to English.\n4. If \"User Question\" is Arabic: Translate \"Source Text\" to Arabic.\n\n### CRITICAL RULES\n- PRESERVE the citation header (e.g., \"Basierend auf...\", \"Based on...\") exactly.\n- OUTPUT ONLY the final processed text.\n- DO NOT repeat the User Question.\n- DO NOT add introduction like \"Here is the translation:\".",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1840,
+        32
+      ],
+      "id": "0082de51-6ad2-491c-9160-08cf5cc53dde",
+      "name": "Language Translator"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        -432
+      ],
+      "id": "9dcb7e40-208c-4805-9694-b04f1a30d005",
+      "name": "Ollama Chat Model3",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmOllama",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -448
+      ],
+      "id": "7c12640f-f85e-4375-a223-af4925519594",
+      "name": "Ollama Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        -432
+      ],
+      "id": "286b91a4-970c-4079-a039-32368d965beb",
+      "name": "Ollama Chat Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Du bist ein Experte für Informationsrückgewinnung (Information Retrieval).\nDeine Aufgabe: Generiere eine optimierte Suchanfrage (Keyword-Liste) für eine Vektor-Datenbank.\n\nANWEISUNGEN:\n1. Analysiere die User-Eingabe und erkenne das Kernthema.\n2. Ergänze wichtige Synonyme, Fachbegriffe und verwandte Wörter, die in professionellen Dokumenten zu diesem Thema vorkommen könnten.\n3. Wenn die User-Eingabe eine Fremdsprache ist (nicht Deutsch), füge UNBEDINGT auch die deutschen Übersetzungen der Schlüsselbegriffe hinzu (da die Datenbank deutsche Dokumente enthält).\n4. Gib NUR eine Liste von Stichwörtern zurück. Keine Sätze, keine Erklärungen.\n\nBeispiel:\nUser: \"Mein Rechner ist langsam\"\nOutput: Rechner Computer PC System langsam Performance Leistungsprobleme CPU Auslastung\n\nUser Eingabe: {{ $('Webhook').first().json.body.message }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        448,
+        -672
+      ],
+      "id": "8b5cec65-9ce9-4e20-bf19-96e27bc7e5cd",
+      "name": "Query Expansion & Keyword Generator1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text:latest\",\n  \"input\": {{ JSON.stringify($('Query Expansion & Keyword Generator1').first().json.text) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        800,
+        -672
+      ],
+      "id": "c917c334-72bc-4cd8-9e35-5df52302afd9",
+      "name": "Generate Embeddings1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/chunks/points/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"vector\": {{ JSON.stringify($json.embeddings[0]) }},\n  \"limit\": 10, \n  \"with_payload\": [\"titel\", \"seitestart\", \"seiteende\", \"text\"],\n  \"with_vector\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1024,
+        -672
+      ],
+      "id": "74cfd253-4aae-4f1f-9c60-6ad9678ce8e4",
+      "name": "Qdrant Vector Search1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- 1. DATEN SICHER ABRUFEN ---\n// Wir nutzen try-catch, damit der Workflow nicht abstürzt, falls ein Node noch nicht ausgeführt wurde.\n// WICHTIG: Die Node-Namen müssen exakt stimmen!\n\nlet results = [];\ntry {\n  // Holt Ergebnisse aus der Qdrant Suche\n  results = $('Qdrant Vector Search1').first().json.result || [];\n} catch (e) {\n  results = []; \n}\n\nlet expandedQuery = \"\";\ntry {\n  // Versucht Keywords aus dem Generator zu holen\n  expandedQuery = $('Query Expansion & Keyword Generator1').first().json.text || \"\";\n} catch (e) {\n  // Fallback: Wenn Query Expansion fehlt, nehmen wir den Original-Input vom Webhook\n  try {\n     // HIER GEÄNDERT: Zugriff auf Webhook statt Chat Trigger\n     expandedQuery = $('Webhook').first().json.body.message || \"\";\n  } catch(e2) {\n     expandedQuery = \"\";\n  }\n}\n\n// Sicherheits-Abbruch\nif (!expandedQuery && results.length === 0) {\n    return [{ json: { context: \"System-Hinweis: Es wurden keine Dokumente gefunden oder die Suche ist fehlgeschlagen.\" } }];\n}\n\n// --- 2. KEYWORDS VORBEREITEN ---\nconst queryLower = expandedQuery.toLowerCase();\n\n// Wörter zerlegen und Füllwörter filtern\nconst keywords = queryLower.split(' ')\n    .map(w => w.replace(/[?.,!\":]/g, '').trim())\n    .filter(w => w.length > 3);\n\n// --- 3. SCORING & SORTIERUNG ---\nconst scoredItems = results.map(item => {\n    let keywordScore = 0;\n    const textLower = (item.payload.text || \"\").toLowerCase();\n    \n    keywords.forEach(kw => {\n        if (textLower.includes(kw)) keywordScore += 1;\n    });\n\n    if (textLower.includes(\". . . .\")) keywordScore -= 5;\n    if (textLower.includes(\"..........\")) keywordScore -= 5;\n\n    return {\n        originalItem: item,\n        finalScore: (item.score || 0) + (keywordScore * 0.2) \n    };\n});\n\n// Sortieren und Top 5\nscoredItems.sort((a, b) => b.finalScore - a.finalScore);\nconst top5 = scoredItems.slice(0, 5).map(wrapper => wrapper.originalItem);\n\n// --- 4. CONTEXT STRING BAUEN ---\nlet contextString = \"\";\n\nif (top5.length === 0) {\n    contextString = \"Keine passenden Dokumente gefunden.\";\n} else {\n    for (const item of top5) {\n      const p = item.payload;\n      contextString += `---\nDOKUMENT: ${p.titel}\nSEITE: ${p.seitestart} - ${p.seiteende}\nINHALT:\n${p.text}\n---\\n`;\n    }\n}\n\nreturn [{ json: { context: contextString } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        -672
+      ],
+      "id": "47cd1fe9-6a17-47fc-abd0-1135f47ad466",
+      "name": "Reranking & Context Builder1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Du bist ein präziser Dokumenten-Assistent.\n\nREGELN:\n1. Beginne JEDE Antwort direkt mit dem Satz: \"Basierend auf [Dateiname] (Seite X-Y):\"\n2. Fasse die Informationen aus dem Kontext zusammen, um die Frage zu beantworten.\n3. Wenn der Kontext die Antwort nicht enthält, antworte nur: \"Keine Informationen im Kontext gefunden.\"\n4. Erfinde KEINE Informationen.\n\nKONTEXT:\n{{ $('Reranking & Context Builder1').item.json.context }}\n\nFRAGE:\n{{ $('Webhook').first().json.body.message }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1504,
+        -672
+      ],
+      "id": "c5d3578a-d435-41bd-8e27-be7117d87060",
+      "name": "RAG Answer Generator1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "==### ROLE\nYou are a pure translation engine. You do not chat, you do not explain, and you NEVER repeat the input.\n\n### INPUTS\n[QUESTION] = \"{{ $('Webhook').first().json.body.message }}\"\n[TEXT] = \"{{ $('RAG Answer Generator1').first().json.text }}\"\n\n### TASK\n1. Detect the language of the \"User Question\".\n2. If \"User Question\" is German: Output \"Source Text\" exactly as is.\n3. If \"User Question\" is English: Translate \"Source Text\" to English.\n4. If \"User Question\" is Arabic: Translate \"Source Text\" to Arabic.\n\n### CRITICAL RULES\n- PRESERVE the citation header (e.g., \"Basierend auf...\", \"Based on...\") exactly.\n- OUTPUT ONLY the final processed text.\n- DO NOT repeat the User Question.\n- DO NOT add introduction like \"Here is the translation:\".",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1856,
+        -672
+      ],
+      "id": "026234a8-ee33-495c-a595-7d381f4c9841",
+      "name": "Language Translator1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-chat",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        96,
+        -672
+      ],
+      "id": "fcedcd29-2327-422e-92a5-61a7e7bfbd55",
+      "name": "Webhook",
+      "webhookId": "a60a7156-257d-4ae0-aa32-7e5ec74b11e0"
+    },
+    {
+      "parameters": {
+        "content": "## UI\nLade die Datei „ChatUI.html” aus dem Repository herunter, um den Chatbot über die UI zu bedienen. ",
+        "height": 480,
+        "width": 2272
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -16,
+        -768
+      ],
+      "typeVersion": 1,
+      "id": "1c9320a9-6b78-4a09-9406-4af65cbb7e8b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## ChatBot\nÜber den Chat unten links kann der Chatbot benutzt werden.",
+        "height": 512,
+        "width": 2240,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        32,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "61b9d34a-b0b8-4bbb-bb83-1795827b8d89",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Query Expansion & Keyword Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG Answer Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Query Expansion & Keyword Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Language Translator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Expansion & Keyword Generator": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Search": {
+      "main": [
+        [
+          {
+            "node": "Reranking & Context Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranking & Context Builder": {
+      "main": [
+        [
+          {
+            "node": "RAG Answer Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Answer Generator": {
+      "main": [
+        [
+          {
+            "node": "Language Translator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Language Translator": {
+      "main": [
+        []
+      ]
+    },
+    "Ollama Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG Answer Generator1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Query Expansion & Keyword Generator1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Language Translator1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Expansion & Keyword Generator1": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings1": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Vector Search1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Search1": {
+      "main": [
+        [
+          {
+            "node": "Reranking & Context Builder1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reranking & Context Builder1": {
+      "main": [
+        [
+          {
+            "node": "RAG Answer Generator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Answer Generator1": {
+      "main": [
+        [
+          {
+            "node": "Language Translator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Query Expansion & Keyword Generator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f10b9624-644c-4f27-a31e-b50b76970db9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "GrbG7uPn0k96RCT2",
+  "tags": []
+}
