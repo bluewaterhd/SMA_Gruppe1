@@ -1,9 +1,11 @@
+version: '3.8'
+
 volumes:
   n8n_storage:
   postgres_storage:
   ollama_storage:
   qdrant_storage:
-  docling_data: 
+  docling_data:
 
 networks:
   demo:
@@ -21,6 +23,9 @@ x-n8n: &service-n8n
     - N8N_ENCRYPTION_KEY
     - N8N_USER_MANAGEMENT_JWT_SECRET
     - OLLAMA_HOST=${OLLAMA_HOST:-ollama:11434}
+    - N8N_CORS_ALLOWED_ORIGINS=*
+    - N8N_CORS_ORIGIN=*
+    - WEBHOOK_URL=http://localhost:5678/
   env_file:
     - path: .env
       required: true
@@ -49,7 +54,6 @@ x-init-ollama: &init-ollama
     - "sleep 3; ollama pull llama3.2; ollama pull nomic-embed-text"
 
 services:
-  
   postgres:
     image: postgres:16-alpine
     hostname: postgres
@@ -67,6 +71,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
   docling:
     image: quay.io/docling-project/docling-serve:latest
     networks: ['demo']
@@ -76,7 +81,7 @@ services:
     environment:
       - DOCLING_SERVE_ENABLE_UI=1
       - MAX_NUM_PAGES=100
-      - MAX_FILE_SIZE=20971520 # 20 MB Limit
+      - MAX_FILE_SIZE=20971520
     volumes:
       - docling_data:/app/data
 
@@ -139,17 +144,14 @@ services:
         until curl -s http://qdrant:6333/healthz > /dev/null; do
           sleep 1
         done
-
         echo "Deleting collection (if exists)..."
         curl -s -X DELETE http://qdrant:6333/collections/chunks || true
-
         echo "Creating collection..."
         curl -s -X PUT http://qdrant:6333/collections/chunks \
           -H "Content-Type: application/json" \
           --data-raw '{
             "vectors": { "size": 768, "distance": "Cosine" }
           }' || true
-
         echo "Qdrant init done"
 
   ollama-cpu:
@@ -192,4 +194,4 @@ services:
     <<: *init-ollama
     image: ollama/ollama:rocm
     depends_on:
-     - ollama-gpu-amd
+      - ollama-gpu-amd
