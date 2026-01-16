@@ -4,131 +4,97 @@ RAG-System
 ---
 
 # Dokumentation
+Diese README beschreibt, wie du das Projekt aus GitHub holst (pull/clone) und lokal mit Docker Compose startest, sodass n8n, PostgreSQL, Qdrant, Ollama und Docling laufen. 
 
-## Ingestion Pipeline
-### Zotero
-**Setup**
-- Zotero Account anlegen
-- Zotero App herunterladen oder im Browser ausführen
-- Zotero Collector Extension für Firefox installieren
-- In Settings Zotero API Key erstellt und gespeichert
-- (Optional:) Zotero Gruppe erstellen, damit mehrere auf die gleiche Library zugreifen können
 
-**Nutzung**
-- PDFs über den Zotero Connector in die Library laden
-- In **n8n**:
-  - Für Gruppen-Libraries wird die **Group ID** verwendet
-  - Für persönliche Libraries muss die **persönliche User ID** verwendet werden
+## Voraussetzungen  
+- Git installiert  
+- Docker Desktop (Docker Engine) läuft  
+- Docker Compose verfügbar (docker compose ...)  
+- (Optional) Zotero Account + Zotero API Key (für Ingestion)
+
+
+### 1. Projekt aus Github holen 
+**Prozess (Clone)**
+1. Terminal offnen 
+
+2. In einen gewünschten Ordner wechseln: 
+cd ~/Projects  
  
-### Docker & Datenbanken
-**Qdrant**
-Qdrant Collection wird beim Start über `docker-compose` initialisiert:
-```bash
-curl -s -X PUT http://qdrant:6333/collections/chunks \
-  -H "Content-Type: application/json" \
-  --data-raw '{
-    "vectors": { "size": 768, "distance": "Cosine" }
-  }'
-```
+3. Repository klonen: 
+git clone <GITHUB_REPO_URL>  
+ 
+4. In den Projektordner wechseln: 
+cd <REPO_ORDNERNAME> 
 
-**PostgreSQL**
-Postgres wird über ein Init-Script initialisiert:
-```volumes:
-  - ./postgres/init:/docker-entrypoint-initdb.d
-```
-001_init.sql:
-```bash 
-CREATE TABLE IF NOT EXISTS public.dokumente_log (
-  id BIGSERIAL PRIMARY KEY,
-  chunkId TEXT NOT NULL,
-  titel TEXT NOT NULL,
-  seiteStart INT,
-  SeiteEnde INT,
-  inhalt TEXT,
-  tag TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
+**Prozess (Pull)**
+1. In den Projektordner wechseln: 
+cd <REPO_ORDNERNAME> 
 
-### n8n Workflow
-**Allgemeines:**
-* Ein manueller Trigger startet die Ingestion für alle Zotero-Elemente (TODO: Zotero Filing – nur neue Dokumente verarbeiten)
-* Ein Set Node definiert Konstanten wie:
-  * Zotero API Key
-  * API URLs
-* Zotero Items werden sequenziell verarbeitet
+2. Neueste Änderungen holen: 
+git pull 
 
-**Zotero Datenabruf**  
-Unterschieden in 
-* Parent Item
-  * Enthält Metadaten (Titel, Autor, Jahr, etc.)
-* Attachment (PDF)
-  * enthält eigentliche PDF
-Request für Parent Item:
-`https://api.zotero.org/groups/<groupId>/items/top`
-Request für Attachment:
-`https://api.zotero.org/groups/<groupId>/items/children`
-Request für PDF Download:
-`https://api.zotero.org/groups/<groupId>/items/<key>/file`
-Zotero GET Request liefern Items, Key wird genutzt um die gewünschte PDF herunterzuladen
-Jeder Zotero API Request muss API Key und Zotero Version im Request Header hinzugefügt sein (siehe Requests in n8n)  
 
-**PDF Chunking (docling)**  
-Unterscheidung nach Dateigröße
-* Kleine PDFs (< 2 MB): synchron verarbeitet
-* Große PDFs (≥ 2 MB): asynchron verarbeitet  
+### 2. Docker Compose Datei finden 
+Die Docker-Datei befindet sich im Docker-Ordern, weil dort die docker-compose.yml liegt. 
+docker-compose.yml anzeigen lassen: 
+MacOS / Linux: 
+cd SMA_Gruppe1/Docker 
+ls 
 
-Chunking Endpoints:  
-Synchron:  `http://docling:5001/v1/chunk/hybrid/file`  
-Asynchron: `http://docling:5001/v1/chunk/hybrid/file/async`  
+Windows: 
+cd SMA_Gruppe1\Docker 
+Dir 
 
-Chunking-Konfiguration:  
-* Max Tokens: 800
-* Sehr nahe Chunks werden gemerged (merge_peers)
-* Tokenizer: MiniLM-L6-v2  
 
-Asynchrones Chunken wird jede Minute nach Ergebnis gepollt und nach Success wird das Ergebnis eingeholt  
-Polling: `http://docling:5001/v1/status/poll/<taskId>`  
-Ergebnis: `Ergebnis: http://docling:5001/v1/result/<taskId>`  
+### 3. Docker Compose starten 
 
-**Chunk Verarbeitung**
-Ergebnis ist ein Chunk Array  
-Chunks werden:
-1. in einzelne Chunks gesplittet
-2. formattiert (Schema entspricht SQL Tabelle)
-3. in PostgreSQL gespeichert
-PostreSQL Credentials müssen aus `.env` entnommen werden
+1. Container starten
+docker compose up -d  
+ 
+2. Status prüfen: 
+docker compose ps  
+ 
+3. Logs ansehen (falls etwas nicht läuft, Optional): 
+docker compose logs -f  
 
-**Embeddings**
-Chunks werden in Batches von 3 via Ollama Embedding API verarbeitet  
-Ollama API Endpunkt: `http://ollama:11434/api/embeddings`
-Request Body enthält Embedding Modell (nomic-embed-text) und prompt (Chunk Text)  
-Ergebnis ist ein numerischer Vektor (Embedding) pro Chunk  
 
-**Speicherung in Qdrant**
-Endpoint: `http://qdrant:6333/collections/chunks/points`  
-Im request body wird Vektorpunkt Schema spezifiziert:  
-```bash
-{{
-  {
-    "points": [
-      {
-        "id": <id>,
-        "vector": <embedding>,
-        "payload": {
-          "chunkid": <chunkid>,
-          "titel": <titel>,
-          "seitestart": <seitestart>,
-          "seiteende": <seiteende>,
-          "text": <inhalt>,
-          "tag": <tag>
-        }
-      }
-    ]
-  }
-}}
-```
-gespeichert wird:
-* eindeutige ChunkID
-* Vektorpunkt (Embedding)
-* vollständigen Metadaten
+### 4. Zugriff auf n8n 
+n8n: http://localhost:5678/ öffnen (Bei MacOS nicht über Safari öffnen) 
+
+Qdrant lauft intern auf Port 6333 
+
+Ollama läuft intern auf Port 11434  
+
+Docling läuft intern auf Port 5001  
+
+PostgreSQL lauft intern auf Port 5432 
+
+
+### 5. Zotero
+1. Zotero Account anlegen
+2. Zotero App herunterladen oder im Browser ausführen
+3. Zotero Collector Extension für Firefox installieren
+4. In Settings Zotero API Key erstellt und gespeichert
+(Optional:) Zotero Gruppe erstellen, damit mehrere auf die gleiche Library zugreifen können
+
+
+### 6. n8n Workflow importieren & starten 
+1. n8n im Browser offnen 
+
+2. Workflows importieren (über n8n UI) 
+
+3. Credentials setzen: 
+- PostgreSQL Credentials (aus .env) 
+- Zotero API Key / IDs  
+
+4. Ingestion starten (manueller Trigger) 
+
+Wenn n8n meldet „You cannot execute a workflow without an ID": 
+Stelle sicher, dass du den Workflow in n8n gespeichert hast (Save), bevor du ihn ausführst.  
+
+ 
+
+Falls Fehler auftauchen sollten, bitte in die Dokumentation nachschauen.
+
+
